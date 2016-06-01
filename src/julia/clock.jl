@@ -9,8 +9,16 @@ typealias clockid_t Int32
   TIMER_ABSTIME = 1
 )
 
+if Base.Sys.ARCH==:x86 || Base.Sys.ARCH==:arm
+    typealias time_t Clong
+elseif Base.Sys.ARCH==:x86_64
+    typealias time_t Clonglong
+else # TODO support more architectures
+    error("Unsupported architecture")
+end
+
 type timespec
-  sec::Clonglong
+  sec::time_t
   nsec::Clong
 end
 
