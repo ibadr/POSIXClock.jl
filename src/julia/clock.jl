@@ -9,12 +9,14 @@ typealias clockid_t Int32
   TIMER_ABSTIME = 1
 )
 
+const BILLION = 1000000000
+
 if Base.Sys.ARCH==:x86 || Base.Sys.ARCH==:arm
-    typealias time_t Clong
+  typealias time_t Clong
 elseif Base.Sys.ARCH==:x86_64
-    typealias time_t Clonglong
+  typealias time_t Clonglong
 else # TODO support more architectures
-    error("Unsupported architecture")
+  error("Unsupported architecture")
 end
 
 type timespec
@@ -36,4 +38,13 @@ function nanosleep(clockid::CLOCK_ID, t::timespec, flag::TIMER_FLAG = TIMER_ABST
     clockid,flag,Ref(t),Ref(rem))
   s!=0 && error("Error in nanosleep()")
   return nothing
+end
+
+function nanosleep!(t::timespec,nanosec::Clong)
+  t.nsec+=nanosec
+  while t.nsec >= BILLION
+    t.nsec -= BILLION
+    t.sec += 1
+  end
+  nanosleep(CLOCK_MONOTONIC,t,TIMER_ABSTIME)
 end
