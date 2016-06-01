@@ -22,12 +22,11 @@ type timespec
   nsec::Clong
 end
 
-function gettime(clockid::CLOCK_ID)
-  res = timespec(0,0)
+function gettime!(result::timespec,clockid::CLOCK_ID)
   s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ref{timespec}),
-    clockid,Ref(res))
+    clockid,Ref(result))
   s!=0 && error("Error in gettime()")
-  return res
+  return result
 end
 
 function nanosleep(clockid::CLOCK_ID, t::timespec, flag::TIMER_FLAG = TIMER_ABSTIME)
