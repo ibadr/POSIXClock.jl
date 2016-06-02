@@ -24,6 +24,11 @@ type __timespec
   nsec::Clong
 end
 
+module TIMER_FLAG
+  const RELTIME = Val{0}
+  const ABSTIME = Val{1}
+end
+
 function gettime(clockid::CLOCK_ID)
   result = __timespec(0,0)
   s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ref{__timespec}),
@@ -33,7 +38,7 @@ function gettime(clockid::CLOCK_ID)
 end
 
 const tx = __timespec(0,0) # hack, to avoid unnecessary memory allocation
-function nanosleep(clockid::CLOCK_ID, t::timespec)
+function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.ABSTIME})
   tx.sec=t.sec;tx.nsec=t.nsec
   f = pointer_from_objref(tx) # hack, to avoid unnecessary memory allocation
   s = ccall((:clock_nanosleep,librt),Int32,(clockid_t,Int32,Ptr{__timespec},Ptr{__timespec}),
@@ -41,8 +46,9 @@ function nanosleep(clockid::CLOCK_ID, t::timespec)
   s!=0 && error("Error in nanosleep()")
   return nothing
 end
+nanosleep(clockid::CLOCK_ID, t::timespec) = nanosleep(clockid, t, TIMER_FLAG.ABSTIME)
 
-function nanosleep(clockid::CLOCK_ID, t::timespec, relative::Bool)
+function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.RELTIME})
   error("Relative time nanosleep not supported yet!")
   return nothing
 end
