@@ -11,11 +11,11 @@ typealias clockid_t Int32
 
 const BILLION = 1000000000
 
-if Base.Sys.ARCH==:x86 || Base.Sys.ARCH==:arm
+if Base.Sys.WORD_SIZE==32
   typealias time_t Clong
-elseif Base.Sys.ARCH==:x86_64
+elseif Base.Sys.WORD_SIZE==64
   typealias time_t Clonglong
-else # TODO support more architectures
+else
   error("Unsupported architecture")
 end
 
