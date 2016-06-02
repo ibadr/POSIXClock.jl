@@ -4,11 +4,6 @@ typealias clockid_t Int32
   CLOCK_MONOTONIC = 1
 )
 
-@enum(TIMER_FLAG,
-  TIMER_RELTIME = 0,
-  TIMER_ABSTIME = 1
-)
-
 const BILLION = 1000000000
 
 if Base.Sys.WORD_SIZE==32
@@ -19,32 +14,47 @@ else
   error("Unsupported architecture")
 end
 
-type timespec
+immutable timespec
   sec::time_t
   nsec::Clong
 end
 
-function gettime!(result::timespec,clockid::CLOCK_ID)
-  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ref{timespec}),
-    clockid,Ref(result))
-  s!=0 && error("Error in gettime()")
-  return result
+type __timespec
+  sec::time_t
+  nsec::Clong
 end
 
-function nanosleep(clockid::CLOCK_ID, t::timespec, flag::TIMER_FLAG = TIMER_ABSTIME)
-  flag==TIMER_RELTIME && error("Relative time nanosleep not supported yet!")
-  rem = timespec(0,0)
-  s = ccall((:clock_nanosleep,librt),Int32,(clockid_t,Int32,Ref{timespec},Ref{timespec}),
-    clockid,flag,Ref(t),Ref(rem))
+function gettime(clockid::CLOCK_ID)
+  result = __timespec(0,0)
+  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ref{__timespec}),
+    clockid,Ref(result))
+  s!=0 && error("Error in gettime()")
+  return timespec(result.sec,result.nsec)
+end
+
+const tx = __timespec(0,0) # hack, to avoid unnecessary memory allocation
+function nanosleep(clockid::CLOCK_ID, t::timespec)
+  tx.sec=t.sec;tx.nsec=t.nsec
+  f = pointer_from_objref(tx) # hack, to avoid unnecessary memory allocation
+  s = ccall((:clock_nanosleep,librt),Int32,(clockid_t,Int32,Ptr{__timespec},Ptr{__timespec}),
+    clockid,1,f,f)
   s!=0 && error("Error in nanosleep()")
   return nothing
 end
 
-function nanosleep!(t::timespec,nanosec::Clong)
-  t.nsec+=nanosec
-  while t.nsec >= BILLION
-    t.nsec -= BILLION
-    t.sec += 1
+function nanosleep(clockid::CLOCK_ID, t::timespec, relative::Bool)
+  error("Relative time nanosleep not supported yet!")
+  return nothing
+end
+
+function nanosleep(t::timespec,nanosec::Clong)
+  nsec=t.nsec; sec=t.sec
+  nsec+=nanosec
+  while nsec >= BILLION
+    nsec -= BILLION
+    sec += 1
   end
-  nanosleep(CLOCK_MONOTONIC,t,TIMER_ABSTIME)
+  tm = timespec(sec,nsec)
+  nanosleep(CLOCK_MONOTONIC,tm)
+  return tm
 end
