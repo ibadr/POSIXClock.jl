@@ -71,15 +71,13 @@ module TIMER_FLAG
   const ABSTIME = Val{1}
 end
 
-function gettime(clockid::CLOCK_ID)
-  result = __timespec(0,0)
-  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ref{__timespec}),
-    clockid,Ref(result))
-  s!=0 && error("Error in gettime()")
-  return timespec(result.sec,result.nsec)
-end
-
 const tx = __timespec(0,0) # hack, to avoid unnecessary memory allocation
+function gettime(clockid::CLOCK_ID)
+  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ptr{__timespec}),
+    clockid,pointer_from_objref(tx))
+  s!=0 && error("Error in gettime()")
+  return timespec(tx.sec,tx.nsec)
+end
 function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.ABSTIME})
   tx.sec=t.sec;tx.nsec=t.nsec
   f = pointer_from_objref(tx) # hack, to avoid unnecessary memory allocation
