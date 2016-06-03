@@ -1,3 +1,5 @@
+import Base: +,-
+
 typealias clockid_t Int32
 @enum(CLOCK_ID,
   CLOCK_REALTIME = 0,
@@ -27,6 +29,38 @@ end
   end
   return timespec(sec,nsec)
 end
+
+function +(t1::timespec,t2::timespec)
+  if t1.sec < 0 || t1.nsec < 0 || t2.sec < 0 || t2.nsec < 0
+    error("Adding timespec is only defined for positive time values")
+  end
+  tm=timespec(t1.sec+t2.sec,t1.nsec+t2.nsec)
+  return normalize(tm)
+end
+
+function -(t1::timespec,t2::timespec)
+  if t1.sec < 0 || t1.nsec < 0 || t2.sec < 0 || t2.nsec < 0
+    error("Subtracting timespec is only defined for positive time values")
+  end
+  # find the larger time value
+  if t1.sec-t2.sec > 0
+    tend = t1; tbegin = t2; dsign=+1
+  elseif t1.sec-t2.sec < 0
+    tend = t2; tbegin = t1; dsign=-1
+  else # t1.sec == t2.sec
+    if t1.nsec > t2.nsec
+      tend = t1; tbegin = t2; dsign=+1
+    elseif t1.nsec < t2.nsec
+      tend = t2; tbegin = t1; dsign=-1
+    else # a tie!
+      tend = t1; tbegin = t2; dsign=+1
+    end
+  end
+  dnsec = tend.nsec - tbegin.nsec; dsec = tend.sec - tbegin.sec
+  dnsec < 0 && (dnsec+=BILLION; dsec-=1)
+  d::Int64 = dsign*(dnsec+BILLION*dsec)
+end
+
 type __timespec
   sec::time_t
   nsec::Clong
