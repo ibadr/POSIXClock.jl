@@ -3,7 +3,9 @@ import POSIXClock
 function main()
   interval = 100000 # 100us
 
-  t::POSIXClock.timespec = POSIXClock.gettime(POSIXClock.CLOCK_MONOTONIC)
+  t = POSIXClock.timespec(0,0)
+  POSIXClock.gettime!(t,POSIXClock.CLOCK_MONOTONIC)
+  @show t
 
   n = 0
   # Lock future memory allocations, disable GC
@@ -12,7 +14,7 @@ function main()
 
   @time while n <= div(5000000000,interval)
     n+=1
-    t = POSIXClock.nanosleep(t,interval)
+    POSIXClock.nanosleep!(t,interval)
   end # time should be around 5 seconds
 
   # Unlock memory allocations, enable GC

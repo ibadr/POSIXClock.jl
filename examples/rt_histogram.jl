@@ -6,10 +6,14 @@ import PlotlyJS; pl=PlotlyJS
 
 const interval = 100000 # 100us
 function run()
-  t::POSIXClock.timespec = POSIXClock.gettime(POSIXClock.CLOCK_MONOTONIC)
+  t = POSIXClock.timespec(0,0)
+  POSIXClock.gettime!(t,POSIXClock.CLOCK_MONOTONIC)
   nItr = div(60000000000,interval)
   # pre-allocate samples array
   differ = Vector{Int64}(nItr+1)
+  # pre-allocate timespec
+  start_t = POSIXClock.timespec(0,0)
+  stop_t = POSIXClock.timespec(0,0)
 
   # Lock future memory allocations, disable GC
   ccall(:mlockall, Cint, (Cint,), 2) # CAUTION: will crash Julia on future memory allocations
@@ -18,10 +22,10 @@ function run()
   n = 0
   @time while n <= nItr
     n+=1
-    start = POSIXClock.gettime(POSIXClock.CLOCK_MONOTONIC)
-    t = POSIXClock.nanosleep(t,interval)
-    stop = POSIXClock.gettime(POSIXClock.CLOCK_MONOTONIC)
-    differ[n]=stop-start
+    POSIXClock.gettime!(start_t,POSIXClock.CLOCK_MONOTONIC)
+    POSIXClock.nanosleep!(t,interval)
+    POSIXClock.gettime!(stop_t,POSIXClock.CLOCK_MONOTONIC)
+    differ[n]=stop_t-start_t
   end
 
   # Unlock memory allocations, enable GC
