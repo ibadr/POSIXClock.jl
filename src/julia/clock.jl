@@ -16,26 +16,18 @@ else
   error("Unsupported architecture")
 end
 
-immutable timespec
+type timespec
   sec::time_t
   nsec::Clong
 end
 
-@inline function normalize(t::timespec)
-  nsec=t.nsec; sec=t.sec
-  if nsec >= BILLION
-    (ss,nsec)=divrem(nsec,BILLION)
-    sec += ss
+@inline function normalize!(t::timespec)
+  if t.nsec >= BILLION
+    (ss,ns)=divrem(t.nsec,BILLION)
+    t.sec += ss
+    t.nsec = ns
   end
-  return timespec(sec,nsec)
-end
-
-function +(t1::timespec,t2::timespec)
-  if t1.sec < 0 || t1.nsec < 0 || t2.sec < 0 || t2.nsec < 0
-    error("Adding timespec is only defined for positive time values")
-  end
-  tm=timespec(t1.sec+t2.sec,t1.nsec+t2.nsec)
-  return normalize(tm)
+  return t
 end
 
 function -(t1::timespec,t2::timespec)
@@ -61,27 +53,21 @@ function -(t1::timespec,t2::timespec)
   d::Int64 = dsign*(dnsec+BILLION*dsec)
 end
 
-type __timespec
-  sec::time_t
-  nsec::Clong
-end
-
 module TIMER_FLAG
   const RELTIME = Val{0}
   const ABSTIME = Val{1}
 end
 
-const tx = __timespec(0,0) # hack, to avoid unnecessary memory allocation
-function gettime(clockid::CLOCK_ID)
-  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ptr{__timespec}),
+function gettime!(tx::timespec,clockid::CLOCK_ID)
+  s = ccall((:clock_gettime,librt),Int32,(clockid_t,Ptr{timespec}),
     clockid,pointer_from_objref(tx))
   s!=0 && error("Error in gettime()")
-  return timespec(tx.sec,tx.nsec)
+  return tx
 end
-function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.ABSTIME})
-  tx.sec=t.sec;tx.nsec=t.nsec
+
+function nanosleep(clockid::CLOCK_ID, tx::timespec, ::Type{TIMER_FLAG.ABSTIME})
   f = pointer_from_objref(tx) # hack, to avoid unnecessary memory allocation
-  s = ccall((:clock_nanosleep,librt),Int32,(clockid_t,Int32,Ptr{__timespec},Ptr{__timespec}),
+  s = ccall((:clock_nanosleep,librt),Int32,(clockid_t,Int32,Ptr{timespec},Ptr{timespec}),
     clockid,1,f,f)
   s!=0 && error("Error in nanosleep()")
   return nothing
@@ -93,8 +79,10 @@ function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.RELTIME})
   return nothing
 end
 
-@inline function nanosleep(t::timespec,nanosec::Clong)
-  tm = normalize(timespec(t.sec,t.nsec+nanosec))
-  nanosleep(CLOCK_MONOTONIC,tm)
-  return tm
+@inline function nanosleep!(tx::timespec,nanosec::Clong,clockid::CLOCK_ID)
+  tx.nsec += nanosec
+  normalize!(tx)
+  nanosleep(clockid,tx)
+  return tx
 end
+nanosleep!(tx::timespec,nanosec::Clong) = nanosleep!(tx,nanosec,CLOCK_MONOTONIC)
