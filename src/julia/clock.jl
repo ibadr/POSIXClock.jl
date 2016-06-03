@@ -19,6 +19,14 @@ immutable timespec
   nsec::Clong
 end
 
+@inline function normalize(t::timespec)
+  nsec=t.nsec; sec=t.sec
+  if nsec >= BILLION
+    (ss,nsec)=divrem(nsec,BILLION)
+    sec += ss
+  end
+  return timespec(sec,nsec)
+end
 type __timespec
   sec::time_t
   nsec::Clong
@@ -53,14 +61,8 @@ function nanosleep(clockid::CLOCK_ID, t::timespec, ::Type{TIMER_FLAG.RELTIME})
   return nothing
 end
 
-function nanosleep(t::timespec,nanosec::Clong)
-  nsec=t.nsec; sec=t.sec
-  nsec+=nanosec
-  while nsec >= BILLION
-    nsec -= BILLION
-    sec += 1
-  end
-  tm = timespec(sec,nsec)
+@inline function nanosleep(t::timespec,nanosec::Clong)
+  tm = normalize(timespec(t.sec,t.nsec+nanosec))
   nanosleep(CLOCK_MONOTONIC,tm)
   return tm
 end
