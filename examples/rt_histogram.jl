@@ -4,28 +4,26 @@ typeof(Pkg.installed("PlotlyJS"))==Void &&
   error("Please install PlotlyJS package to run this example.")
 import PlotlyJS; pl=PlotlyJS
 
-const interval = 100000 # 100us
+const interval = 200000 # 200us
 function run()
-  t = POSIXClock.timespec(0,0)
-  POSIXClock.gettime!(t,POSIXClock.CLOCK_MONOTONIC)
   nItr = div(60000000000,interval)
   # pre-allocate samples array
   differ = Vector{Int64}(nItr+1)
   # pre-allocate timespec
-  start_t = POSIXClock.timespec(0,0)
-  stop_t = POSIXClock.timespec(0,0)
+  t = POSIXClock.timespec(0,0)
+  actual_t = POSIXClock.timespec(0,0)
 
   # Lock future memory allocations, disable GC
   ccall(:mlockall, Cint, (Cint,), 2) # CAUTION: will crash Julia on future memory allocations
   gc_enable(false)
 
   n = 0
+  POSIXClock.gettime!(t,POSIXClock.CLOCK_MONOTONIC)
   @time while n <= nItr
-    n+=1
-    POSIXClock.gettime!(start_t,POSIXClock.CLOCK_MONOTONIC)
     POSIXClock.nanosleep!(t,interval)
-    POSIXClock.gettime!(stop_t,POSIXClock.CLOCK_MONOTONIC)
-    differ[n]=stop_t-start_t
+    POSIXClock.gettime!(actual_t,POSIXClock.CLOCK_MONOTONIC)
+    n+=1
+    differ[n]=actual_t-t
   end
 
   # Unlock memory allocations, enable GC
@@ -36,7 +34,7 @@ function run()
 end
 
 function getHistogram(differences::Vector{Int64})
-  trace1 = pl.histogram(x=(differences-interval)/1000, opacity=0.75)
+  trace1 = pl.histogram(x=(differences)/1000, opacity=0.75)
   layout = pl.Layout(barmode="overlay")
   return ([trace1],layout)
 end
