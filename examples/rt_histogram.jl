@@ -1,8 +1,8 @@
 import POSIXClock
 
-typeof(Pkg.installed("PlotlyJS"))==Void &&
-  error("Please install PlotlyJS package to run this example.")
-import PlotlyJS; pl=PlotlyJS
+typeof(Pkg.installed("Gadfly"))==Void &&
+  error("Please install Gadfly package to run this example.")
+import Gadfly; pl=Gadfly
 
 const interval = 200000 # 200us
 function run()
@@ -33,12 +33,8 @@ function run()
   return differ
 end
 
-function getHistogram(differences::Vector{Int64})
-  trace1 = pl.histogram(x=(differences)/1000, opacity=0.75)
-  layout = pl.Layout(barmode="overlay")
-  return ([trace1],layout)
-end
-
 const d=run()
-(data,layout) = getHistogram(d)
-pl.plot(data,layout)
+histplot=pl.plot(
+  x=d/1000, pl.Geom.histogram(),
+  pl.Guide.xlabel("Latency (us)"),
+  pl.Guide.ylabel("Histogram counts"))
