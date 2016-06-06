@@ -1,3 +1,5 @@
+__precompile__()
+
 module POSIXClock
 
 const librt = Libdl.find_library(["librt.so"])
